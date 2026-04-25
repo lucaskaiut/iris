@@ -1,0 +1,26 @@
+.app {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  place-items: center;
+  place-content: center;
+  padding: 28px 16px;
+}
+
+.subtitle {
+  margin-top: -8px;
+}
+
+.stage {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.stage > div {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
