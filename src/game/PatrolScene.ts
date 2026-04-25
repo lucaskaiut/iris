@@ -16,7 +16,6 @@ export class PatrolScene extends Phaser.Scene {
   private dir: 1 | -1 = 1
   private minX = 0
   private maxX = 0
-  private lastAutoDir: 1 | -1 = 1
   private turningMsLeft = 0
   private turnNextDir: 1 | -1 = 1
 
@@ -95,7 +94,6 @@ export class PatrolScene extends Phaser.Scene {
       this.turningMsLeft = Math.max(0, this.turningMsLeft - deltaMs)
       if (this.turningMsLeft === 0) {
         this.dir = this.turnNextDir
-        this.lastAutoDir = this.dir
         const key = `${sheet.model}:${sheet.animation}`
         const direction: DirectionId = this.dir === -1 ? 'left' : 'right'
         const animKey = `${key}:${direction}:anim`
