@@ -52,6 +52,27 @@ export const PET_HEALTH = {
 
 export type ActionBlock = { ok: true } | { ok: false; reason: string }
 
+export type PlayMiniGameResult = 'poor' | 'normal' | 'good' | 'excellent'
+
+export const PLAY_MINIGAME = {
+  durationSec: 30,
+  scoreToResult: {
+    poorMax: 2,
+    normalMax: 5,
+    goodMax: 9,
+  },
+} as const
+
+export const PLAY_MINIGAME_EFFECTS: Record<
+  PlayMiniGameResult,
+  { energyDelta: number; hungerDelta: number; healthDelta: number }
+> = {
+  poor: { energyDelta: -15, hungerDelta: -10, healthDelta: 0 },
+  normal: { energyDelta: -20, hungerDelta: -15, healthDelta: +5 },
+  good: { energyDelta: -20, hungerDelta: -15, healthDelta: +10 },
+  excellent: { energyDelta: -25, hungerDelta: -18, healthDelta: +15 },
+} as const
+
 function clamp01(v: number) {
   return Math.max(0, Math.min(1, v))
 }
@@ -75,6 +96,44 @@ export function canPlay(pet: Pet): ActionBlock {
   if (pet.energy < 30) return { ok: false, reason: 'Energia muito baixa para brincar' }
   if (pet.hunger < 30) return { ok: false, reason: 'Fome muito baixa para brincar' }
   return { ok: true }
+}
+
+export function classifyPlayScore(score: number): PlayMiniGameResult {
+  const safeScore = Number.isFinite(score) ? Math.max(0, Math.floor(score)) : 0
+  if (safeScore <= PLAY_MINIGAME.scoreToResult.poorMax) return 'poor'
+  if (safeScore <= PLAY_MINIGAME.scoreToResult.normalMax) return 'normal'
+  if (safeScore <= PLAY_MINIGAME.scoreToResult.goodMax) return 'good'
+  return 'excellent'
+}
+
+export type ApplyPlayResultOk = {
+  ok: true
+  pet: Pet
+  applied: { result: PlayMiniGameResult } & (typeof PLAY_MINIGAME_EFFECTS)[PlayMiniGameResult]
+}
+
+export type ApplyPlayResultErr = { ok: false; reason: string }
+
+export function applyPlayResult(
+  pet: Pet,
+  result: PlayMiniGameResult,
+  nowMs: number,
+): ApplyPlayResultOk | ApplyPlayResultErr {
+  const decayed = applyTimeProgress(pet, nowMs)
+  const block = canPlay(decayed)
+  if (!block.ok) return block
+
+  const fx = PLAY_MINIGAME_EFFECTS[result]
+  const next = clampPet({
+    ...decayed,
+    energy: decayed.energy + fx.energyDelta,
+    hunger: decayed.hunger + fx.hungerDelta,
+    health: decayed.health + fx.healthDelta,
+    updatedAt: nowMs,
+    lastInteractionAt: nowMs,
+  })
+
+  return { ok: true, pet: next, applied: { result, ...fx } }
 }
 
 export function canFeed(pet: Pet): ActionBlock {

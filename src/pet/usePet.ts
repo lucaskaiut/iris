@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   applyFeed,
   applyPlay,
+  applyPlayResult,
   applySleep,
   applyWake,
   applyTimeProgress,
@@ -12,6 +13,7 @@ import {
   createPet,
   derivePetState,
   type Pet,
+  type PlayMiniGameResult,
 } from './domain'
 import { createLocalStoragePetStore } from './stores/localStoragePetStore'
 import type { PetStore } from './store'
@@ -35,6 +37,7 @@ export type UsePetResult = {
   setModelId(modelId: string): void
   feed(): void
   play(): void
+  applyPlayMiniGameResult(result: PlayMiniGameResult): { ok: true } | { ok: false; reason: string }
   sleep(): void
   wake(): void
   reset(): void
@@ -123,6 +126,18 @@ export function usePet(opts: UsePetOptions): UsePetResult {
     persistAndSet(next)
   }, [persistAndSet, pet])
 
+  const applyPlayMiniGameResultCb = useCallback(
+    (result: PlayMiniGameResult) => {
+      if (derivePetState(pet).isCritical) return { ok: false, reason: 'Pet morto' } as const
+      const now = Date.now()
+      const applied = applyPlayResult(pet, result, now)
+      if (!applied.ok) return applied
+      persistAndSet(applied.pet)
+      return { ok: true } as const
+    },
+    [persistAndSet, pet],
+  )
+
   const sleep = useCallback(() => {
     if (derivePetState(pet).isCritical) return
     const now = Date.now()
@@ -178,6 +193,7 @@ export function usePet(opts: UsePetOptions): UsePetResult {
     setModelId,
     feed,
     play,
+    applyPlayMiniGameResult: applyPlayMiniGameResultCb,
     sleep,
     wake,
     reset,

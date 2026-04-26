@@ -1,9 +1,10 @@
 import Phaser from 'phaser'
 import { PatrolScene, type PatrolSceneConfig } from './PatrolScene'
+import { StarCatchScene, type StarCatchSceneConfig } from './StarCatchScene'
 
 export type GameMountConfig = {
   parent: HTMLElement
-  scene: PatrolSceneConfig
+  scene: PatrolSceneConfig | StarCatchSceneConfig
 }
 
 export function createGame({ parent, scene }: GameMountConfig) {
@@ -23,7 +24,11 @@ export function createGame({ parent, scene }: GameMountConfig) {
       height: initial.h,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [new PatrolScene(scene)],
+    physics:
+      'durationSec' in scene
+        ? { default: 'arcade', arcade: { debug: false, gravity: { x: 0, y: 0 } } }
+        : undefined,
+    scene: ['durationSec' in scene ? new StarCatchScene(scene) : new PatrolScene(scene)],
   }
 
   const game = new Phaser.Game(config)

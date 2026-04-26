@@ -3,6 +3,7 @@ import PhaserStage from './components/PhaserStage';
 import StatusRing from './components/StatusRing';
 import { getAvailableModels } from './game/assets';
 import { usePet } from './pet/usePet';
+import { classifyPlayScore, PLAY_MINIGAME_EFFECTS, type PlayMiniGameResult } from './pet/domain';
 import CogIcon from './assets/icons/hud/cog.png';
 import HamburgerIcon from './assets/icons/hud/hamburger.png';
 import HeartIcon from './assets/icons/hud/heart.png';
@@ -20,7 +21,7 @@ function App() {
     setName,
     setModelId,
     feed,
-    play,
+    applyPlayMiniGameResult,
     sleep,
     wake,
     reset,
@@ -65,6 +66,15 @@ function App() {
         ? 'Muito faminto: dormir não recupera energia e sua saúde piora.'
         : '';
 
+  const [miniGameState, setMiniGameState] = useState<'idle' | 'playing' | 'finished'>('idle');
+  const [playUiMessage, setPlayUiMessage] = useState<string>('');
+  const [miniGameSummary, setMiniGameSummary] = useState<{
+    score: number;
+    applied: (typeof PLAY_MINIGAME_EFFECTS)[PlayMiniGameResult];
+  } | null>(null);
+
+  const actionsLocked = miniGameState === 'playing';
+
   useEffect(() => {
     if (!settingsOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -73,6 +83,36 @@ function App() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [settingsOpen]);
+
+  useEffect(() => {
+    if (!playUiMessage) return;
+    const id = window.setTimeout(() => setPlayUiMessage(''), 2800);
+    return () => window.clearTimeout(id);
+  }, [playUiMessage]);
+
+  useEffect(() => {
+    if (miniGameState !== 'playing') return;
+    if (pet.health > 0) return;
+    // morreu durante o minigame: encerra sem aplicar resultado
+    setMiniGameState('idle');
+    setMiniGameSummary(null);
+    setPlayUiMessage('Seu pet morreu!');
+  }, [miniGameState, pet.health]);
+
+  const startMiniGame = () => {
+    if (isCritical) return;
+    if (actionsLocked) return;
+    if (isSleeping) {
+      setPlayUiMessage('Não pode brincar enquanto dorme.');
+      return;
+    }
+    if (!canPlay.ok) {
+      setPlayUiMessage('reason' in canPlay ? canPlay.reason : 'Não pode brincar agora.');
+      return;
+    }
+    setMiniGameSummary(null);
+    setMiniGameState('playing');
+  };
 
   return (
     <main className="h-full w-full grid grid-rows-[auto,1fr,auto] box-border overflow-hidden">
@@ -114,7 +154,24 @@ function App() {
 
       <section className="min-h-0 flex w-full justify-center overflow-hidden">
         <div className="overflow-hidden rounded-xl w-full min-h-0">
-          <PhaserStage model={pet.modelId} />
+          <PhaserStage
+            model={pet.modelId}
+            mode={miniGameState === 'playing' ? 'play-minigame' : 'idle'}
+            shouldAbortMiniGame={() => pet.health <= 0}
+            onMiniGameFinished={(payload) => {
+              setMiniGameState('idle');
+              if (payload.aborted) return;
+              const result = classifyPlayScore(payload.score);
+              const applied = PLAY_MINIGAME_EFFECTS[result];
+              const res = applyPlayMiniGameResult(result);
+              if (!res.ok) {
+                setPlayUiMessage('reason' in res ? res.reason : 'Não foi possível aplicar o resultado.');
+                return;
+              }
+              setMiniGameSummary({ score: payload.score, applied });
+              setMiniGameState('finished');
+            }}
+          />
         </div>
       </section>
 
@@ -132,6 +189,11 @@ function App() {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
+            {playUiMessage ? (
+              <div className="max-w-[720px] rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--code-bg)_60%,transparent)] px-3 py-2 text-sm opacity-90">
+                {playUiMessage}
+              </div>
+            ) : null}
             {sleepInfo ? (
               <div className="max-w-[720px] rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--code-bg)_60%,transparent)] px-3 py-2 text-sm opacity-90">
                 {sleepInfo}
@@ -142,19 +204,19 @@ function App() {
               className="cursor-pointer rounded-[10px] border border-(--accent-border) bg-(--accent-bg) px-3 py-2 font-(--mono) text-[14px] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               type="button"
               onClick={feed}
-              disabled={isSleeping || !canFeed.ok}
+              disabled={actionsLocked || isSleeping || !canFeed.ok}
               title={feedTitle}
-              aria-disabled={isSleeping || !canFeed.ok}
+              aria-disabled={actionsLocked || isSleeping || !canFeed.ok}
             >
               Alimentar
             </button>
             <button
               className="cursor-pointer rounded-[10px] border border-(--accent-border) bg-(--accent-bg) px-3 py-2 font-(--mono) text-[14px] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               type="button"
-              onClick={play}
-              disabled={isSleeping || !canPlay.ok}
+              onClick={startMiniGame}
+              disabled={actionsLocked || isSleeping || !canPlay.ok}
               title={playTitle}
-              aria-disabled={isSleeping || !canPlay.ok}
+              aria-disabled={actionsLocked || isSleeping || !canPlay.ok}
             >
               Brincar
             </button>
@@ -171,9 +233,9 @@ function App() {
                 className="cursor-pointer rounded-[10px] border border-(--accent-border) bg-(--accent-bg) px-3 py-2 font-(--mono) text-[14px] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 type="button"
                 onClick={sleep}
-                disabled={!canSleep.ok}
+                disabled={actionsLocked || !canSleep.ok}
                 title={sleepTitle}
-                aria-disabled={!canSleep.ok}
+                aria-disabled={actionsLocked || !canSleep.ok}
               >
                 Dormir
               </button>
@@ -347,6 +409,69 @@ function App() {
                   Fechar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {miniGameState === 'finished' && miniGameSummary ? (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Resultado do minigame"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            aria-label="Fechar resultado"
+            onClick={() => {
+              setMiniGameState('idle');
+              setMiniGameSummary(null);
+            }}
+          />
+          <div className="relative w-[min(560px,92vw)] rounded-2xl border border-(--border) bg-(--bg) p-4 shadow-(--shadow)">
+            <div className="flex items-center justify-between gap-3">
+              <h2
+                className="text-(--text-h) font-medium text-xl"
+                style={{ fontFamily: 'var(--heading)' }}
+              >
+                Bom trabalho!
+              </h2>
+              <button
+                type="button"
+                className="grid h-9 w-9 place-items-center rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
+                aria-label="Fechar"
+                onClick={() => {
+                  setMiniGameState('idle');
+                  setMiniGameSummary(null);
+                }}
+                title="Fechar"
+              >
+                <IconClose />
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-2 text-left">
+              <p>Você pegou {miniGameSummary.score} estrelas.</p>
+              <div className="mt-2 grid gap-1 font-(--mono) text-[14px] opacity-90">
+                <div>Saúde {miniGameSummary.applied.healthDelta >= 0 ? '+' : ''}{miniGameSummary.applied.healthDelta}</div>
+                <div>Energia {miniGameSummary.applied.energyDelta >= 0 ? '+' : ''}{miniGameSummary.applied.energyDelta}</div>
+                <div>Fome {miniGameSummary.applied.hungerDelta >= 0 ? '+' : ''}{miniGameSummary.applied.hungerDelta}</div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                className="cursor-pointer rounded-[10px] border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] px-3 py-2 font-(--mono) text-[14px] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
+                onClick={() => {
+                  setMiniGameState('idle');
+                  setMiniGameSummary(null);
+                }}
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>
