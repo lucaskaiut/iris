@@ -24,10 +24,18 @@ function App() {
     sleep,
     wake,
     reset,
+    debugSet,
   } = usePet({
     defaultModelId: models[0] ?? 'fox',
     defaultName: 'Iris',
   });
+
+  const isDev = import.meta.env.DEV;
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [dbgHunger, setDbgHunger] = useState(pet.hunger);
+  const [dbgHealth, setDbgHealth] = useState(pet.health);
+  const [dbgEnergy, setDbgEnergy] = useState(pet.energy);
+  const [dbgSleeping, setDbgSleeping] = useState(pet.isSleeping);
 
   const feedTitle = isSleeping
     ? 'Não pode alimentar enquanto dorme'
@@ -49,6 +57,13 @@ function App() {
       ? canSleep.reason
       : '';
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const sleepInfo =
+    isSleeping && pet.hunger <= 0
+      ? 'Fome zerada: dormindo você perde energia e saúde rapidamente.'
+      : isSleeping && pet.hunger < 20
+        ? 'Muito faminto: dormir não recupera energia e sua saúde piora.'
+        : '';
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -116,7 +131,13 @@ function App() {
             </button>
           </div>
         ) : (
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="flex flex-col items-center gap-2">
+            {sleepInfo ? (
+              <div className="max-w-[720px] rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--code-bg)_60%,transparent)] px-3 py-2 text-sm opacity-90">
+                {sleepInfo}
+              </div>
+            ) : null}
+            <div className="flex flex-wrap justify-center gap-2">
             <button
               className="cursor-pointer rounded-[10px] border border-(--accent-border) bg-(--accent-bg) px-3 py-2 font-(--mono) text-[14px] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               type="button"
@@ -157,6 +178,7 @@ function App() {
                 Dormir
               </button>
             )}
+            </div>
           </div>
         )}
       </section>
@@ -172,6 +194,76 @@ function App() {
           >
             <img src={CogIcon} alt="" className="h-5 w-5 opacity-90" />
           </button>
+
+          {isDev ? (
+            <button
+              type="button"
+              className="grid h-10 w-10 place-items-center rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
+              onClick={() => {
+                setDebugOpen((v) => {
+                  const next = !v;
+                  if (next) {
+                    setDbgHunger(pet.hunger);
+                    setDbgHealth(pet.health);
+                    setDbgEnergy(pet.energy);
+                    setDbgSleeping(pet.isSleeping);
+                  }
+                  return next;
+                });
+              }}
+              aria-label="Debug"
+              title="Debug"
+            >
+              <span className="font-(--mono) text-[16px]">DBG</span>
+            </button>
+          ) : null}
+
+          {isDev && debugOpen ? (
+            <div className="absolute right-[calc(100%+12px)] top-1/2 -translate-y-1/2 w-[260px] rounded-2xl border border-(--border) bg-(--bg) p-3 shadow-(--shadow)">
+              <div className="flex items-center justify-between">
+                <div className="font-(--mono) text-(--text-h)">Debug</div>
+                <button
+                  type="button"
+                  className="grid h-8 w-8 place-items-center rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
+                  onClick={() => setDebugOpen(false)}
+                  aria-label="Fechar debug"
+                  title="Fechar"
+                >
+                  <IconClose />
+                </button>
+              </div>
+
+              <div className="mt-3 grid gap-3">
+                <DebugRow label="Fome" value={dbgHunger} onChange={setDbgHunger} />
+                <DebugRow label="Saúde" value={dbgHealth} onChange={setDbgHealth} />
+                <DebugRow label="Energia" value={dbgEnergy} onChange={setDbgEnergy} />
+
+                <label className="flex items-center gap-2 font-(--mono) text-[13px] opacity-90">
+                  <input
+                    type="checkbox"
+                    checked={dbgSleeping}
+                    onChange={(e) => setDbgSleeping(e.target.checked)}
+                  />
+                  Dormindo
+                </label>
+
+                <button
+                  type="button"
+                  className="cursor-pointer rounded-[10px] border border-(--accent-border) bg-(--accent-bg) px-3 py-2 font-(--mono) text-[14px] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
+                  onClick={() => {
+                    debugSet?.({
+                      hunger: dbgHunger,
+                      health: dbgHealth,
+                      energy: dbgEnergy,
+                      isSleeping: dbgSleeping,
+                    });
+                  }}
+                >
+                  Aplicar
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </aside>
 
@@ -273,6 +365,39 @@ function IconClose() {
         strokeLinecap="round"
       />
     </svg>
+  );
+}
+
+function DebugRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange(v: number): void;
+}) {
+  return (
+    <div className="grid gap-1 text-left">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-(--mono) text-[13px] opacity-85">{label}</span>
+        <input
+          className="w-[72px] rounded-[10px] border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] px-2 py-1 font-(--mono) text-[13px] text-(--text-h)"
+          type="number"
+          min={0}
+          max={100}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+        />
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+    </div>
   );
 }
 

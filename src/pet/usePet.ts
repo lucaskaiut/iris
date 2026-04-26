@@ -8,6 +8,7 @@ import {
   canFeed,
   canPlay,
   canSleep,
+  clampPet,
   createPet,
   derivePetState,
   type Pet,
@@ -37,6 +38,7 @@ export type UsePetResult = {
   sleep(): void
   wake(): void
   reset(): void
+  debugSet?(patch: Partial<Pick<Pet, 'hunger' | 'health' | 'energy' | 'isSleeping'>>): void
 }
 
 export function usePet(opts: UsePetOptions): UsePetResult {
@@ -146,6 +148,24 @@ export function usePet(opts: UsePetOptions): UsePetResult {
     persistAndSet(next)
   }, [persistAndSet, pet.modelId, pet.name])
 
+  const debugSet = useCallback(
+    (patch: Partial<Pick<Pet, 'hunger' | 'health' | 'energy' | 'isSleeping'>>) => {
+      const now = Date.now()
+      persistAndSet(
+        clampPet({
+          ...pet,
+          ...patch,
+          hungerAccMs: 0,
+          energyAccMs: 0,
+          healthAccMs: 0,
+          updatedAt: now,
+          lastInteractionAt: now,
+        }),
+      )
+    },
+    [persistAndSet, pet],
+  )
+
   return {
     pet,
     derived,
@@ -161,6 +181,7 @@ export function usePet(opts: UsePetOptions): UsePetResult {
     sleep,
     wake,
     reset,
+    debugSet,
   }
 }
 

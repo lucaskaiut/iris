@@ -83,6 +83,55 @@ describe('pet domain', () => {
     expect(derivePetState(critical).isCritical).toBe(true)
   })
 
+  it('scales sleep energy regen by hunger and penalizes starving sleep', () => {
+    const now = 1_000_000
+
+    const base = createPet({
+      name: 'X',
+      modelId: 'fox',
+      nowMs: now,
+      initial: { hunger: 100, health: 50, energy: 20 },
+    })
+    const sleepingFull = applySleep(base, now + 1)
+    const after9s = applyTimeProgress(sleepingFull, now + 9_000 + 3)
+    expect(after9s.energy).toBeGreaterThan(sleepingFull.energy)
+
+    const half = createPet({
+      name: 'X',
+      modelId: 'fox',
+      nowMs: now,
+      initial: { hunger: 50, health: 50, energy: 20 },
+    })
+    const sleepingHalf = applySleep(half, now + 1)
+    const after8sHalf = applyTimeProgress(sleepingHalf, now + 8_000 + 2)
+    expect(after8sHalf.energy).toBe(sleepingHalf.energy)
+    const after20sHalf = applyTimeProgress(sleepingHalf, now + 20_000 + 2)
+    expect(after20sHalf.energy).toBeGreaterThan(sleepingHalf.energy)
+
+    const hungry = createPet({
+      name: 'X',
+      modelId: 'fox',
+      nowMs: now,
+      initial: { hunger: 10, health: 10, energy: 20 },
+    })
+    const sleepingHungry = { ...hungry, isSleeping: true }
+    const after80sHungry = applyTimeProgress(sleepingHungry, now + 80_000)
+    expect(after80sHungry.energy).toBe(sleepingHungry.energy)
+    expect(after80sHungry.health).toBeLessThan(sleepingHungry.health)
+
+    const starving = createPet({
+      name: 'X',
+      modelId: 'fox',
+      nowMs: now,
+      initial: { hunger: 0, health: 50, energy: 20 },
+    })
+    const sleepingStarving = { ...starving, isSleeping: true }
+    const after30sStarving = applyTimeProgress(sleepingStarving, now + 30_000 + 1)
+    expect(after30sStarving.energy).toBeLessThan(sleepingStarving.energy)
+    const after40sStarving = applyTimeProgress(sleepingStarving, now + 40_000 + 1)
+    expect(after40sStarving.health).toBeLessThan(sleepingStarving.health)
+  })
+
   it('blocks actions according to rules', () => {
     const now = 1_000_000
     const pet = createPet({

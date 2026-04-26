@@ -46,11 +46,23 @@ export const PET_DECAY = {
 export const PET_HEALTH = {
   lowHunger: -2,
   lowEnergy: -2,
+  sleepHungryPenalty: -2,
+  sleepStarvingPenalty: -5,
 } as const
 
 export type ActionBlock = { ok: true } | { ok: false; reason: string }
 
+function clamp01(v: number) {
+  return Math.max(0, Math.min(1, v))
+}
+
+export function getSleepEfficiency(hunger: number) {
+  if (hunger <= 0) return 0
+  return clamp01(hunger / 100)
+}
+
 export function canSleep(pet: Pet): ActionBlock {
+  if (pet.health <= 0) return { ok: false, reason: 'Pet morto' }
   if (pet.isSleeping) return { ok: false, reason: 'Já está dormindo' }
   if (pet.energy > 80) return { ok: false, reason: 'Energia já está alta' }
   if (pet.hunger < 20) return { ok: false, reason: 'Muito faminto para dormir' }
@@ -58,6 +70,7 @@ export function canSleep(pet: Pet): ActionBlock {
 }
 
 export function canPlay(pet: Pet): ActionBlock {
+  if (pet.health <= 0) return { ok: false, reason: 'Pet morto' }
   if (pet.isSleeping) return { ok: false, reason: 'Não pode brincar dormindo' }
   if (pet.energy < 30) return { ok: false, reason: 'Energia muito baixa para brincar' }
   if (pet.hunger < 30) return { ok: false, reason: 'Fome muito baixa para brincar' }
@@ -65,6 +78,7 @@ export function canPlay(pet: Pet): ActionBlock {
 }
 
 export function canFeed(pet: Pet): ActionBlock {
+  if (pet.health <= 0) return { ok: false, reason: 'Pet morto' }
   if (pet.isSleeping) return { ok: false, reason: 'Não pode alimentar dormindo' }
   if (pet.hunger > 90) return { ok: false, reason: 'Já está alimentado demais' }
   return { ok: true }
@@ -110,7 +124,7 @@ export function createPet(opts: {
 }
 
 export function derivePetState(pet: Pet): PetDerivedState {
-  const isCritical = pet.hunger <= 0 && pet.health <= 0 && pet.energy <= 0
+  const isCritical = pet.health <= 0
   const isHungry = pet.hunger <= PET_THRESHOLDS.critical
   const isTired = pet.energy <= PET_THRESHOLDS.critical
   const isUnhealthy = pet.health <= PET_THRESHOLDS.critical
@@ -137,16 +151,34 @@ export function applyTimeProgress(pet: Pet, nowMs: number): Pet {
     hunger = clampStat(hunger + PET_DECAY.hunger)
   }
 
-  const energyInterval = pet.isSleeping ? PET_SLEEP_REGEN_INTERVAL_MS : PET_ENERGY_AWAKE_INTERVAL_MS
-  while (energyAccMs >= energyInterval) {
-    energyAccMs -= energyInterval
-    energy = clampStat(energy + (pet.isSleeping ? PET_DECAY.sleepEnergy : PET_DECAY.energyAwake))
+  while (true) {
+    const starving = hunger <= 0
+    const hungry = hunger < 20
+
+    const { intervalMs, delta } = (() => {
+      if (!pet.isSleeping) return { intervalMs: PET_ENERGY_AWAKE_INTERVAL_MS, delta: PET_DECAY.energyAwake }
+      if (starving) return { intervalMs: PET_ENERGY_AWAKE_INTERVAL_MS, delta: PET_DECAY.energyAwake }
+      if (hungry) return { intervalMs: PET_SLEEP_REGEN_INTERVAL_MS, delta: 0 }
+
+      const eff = getSleepEfficiency(hunger)
+      const safeEff = Math.max(0.01, eff)
+      return {
+        intervalMs: Math.round(PET_SLEEP_REGEN_INTERVAL_MS / safeEff),
+        delta: PET_DECAY.sleepEnergy,
+      }
+    })()
+
+    if (energyAccMs < intervalMs) break
+    energyAccMs -= intervalMs
+    energy = clampStat(energy + delta)
   }
 
   while (healthAccMs >= PET_HEALTH_INTERVAL_MS) {
     healthAccMs -= PET_HEALTH_INTERVAL_MS
     if (hunger < 20) health = clampStat(health + PET_HEALTH.lowHunger)
     if (energy < 20) health = clampStat(health + PET_HEALTH.lowEnergy)
+    if (pet.isSleeping && hunger <= 0) health = clampStat(health + PET_HEALTH.sleepStarvingPenalty)
+    else if (pet.isSleeping && hunger < 20) health = clampStat(health + PET_HEALTH.sleepHungryPenalty)
   }
 
   return {
