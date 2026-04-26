@@ -6,6 +6,7 @@ import { usePet } from './pet/usePet';
 import CogIcon from './assets/icons/hud/cog.png';
 import HamburgerIcon from './assets/icons/hud/hamburger.png';
 import HeartIcon from './assets/icons/hud/heart.png';
+import LightningIcon from './assets/icons/hud/lightning.png';
 
 function App() {
   const models = useMemo(() => getAvailableModels(), []);
@@ -24,9 +25,9 @@ function App() {
     wake,
     reset,
   } = usePet({
-      defaultModelId: models[0] ?? 'fox',
-      defaultName: 'Iris',
-    });
+    defaultModelId: models[0] ?? 'fox',
+    defaultName: 'Iris',
+  });
 
   const feedTitle = isSleeping
     ? 'Não pode alimentar enquanto dorme'
@@ -34,15 +35,19 @@ function App() {
       ? ''
       : 'reason' in canFeed
         ? canFeed.reason
-        : ''
+        : '';
   const playTitle = isSleeping
     ? 'Não pode brincar enquanto dorme'
     : canPlay.ok
       ? ''
       : 'reason' in canPlay
         ? canPlay.reason
-        : ''
-  const sleepTitle = canSleep.ok ? '' : 'reason' in canSleep ? canSleep.reason : ''
+        : '';
+  const sleepTitle = canSleep.ok
+    ? ''
+    : 'reason' in canSleep
+      ? canSleep.reason
+      : '';
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -62,14 +67,32 @@ function App() {
             <StatusRing
               label="Fome"
               value={pet.hunger}
-              icon={<img src={HamburgerIcon} alt="" className="h-5 w-5 opacity-90" />}
+              icon={
+                <img
+                  src={HamburgerIcon}
+                  alt=""
+                  className="h-5 w-5 opacity-90"
+                />
+              }
             />
             <StatusRing
               label="Saúde"
               value={pet.health}
-              icon={<img src={HeartIcon} alt="" className="h-5 w-5 opacity-90" />}
+              icon={
+                <img src={HeartIcon} alt="" className="h-5 w-5 opacity-90" />
+              }
             />
-            <StatusRing label="Energia" value={pet.energy} icon={<IconBolt />} />
+            <StatusRing
+              label="Energia"
+              value={pet.energy}
+              icon={
+                <img
+                  src={LightningIcon}
+                  alt=""
+                  className="h-5 w-5 opacity-90"
+                />
+              }
+            />
           </div>
         </section>
       </header>
@@ -95,22 +118,22 @@ function App() {
         ) : (
           <div className="flex flex-wrap justify-center gap-2">
             <button
-                className="cursor-pointer rounded-[10px] border border-(--accent-border) bg-(--accent-bg) px-3 py-2 font-(--mono) text-[14px] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="cursor-pointer rounded-[10px] border border-(--accent-border) bg-(--accent-bg) px-3 py-2 font-(--mono) text-[14px] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               type="button"
-                onClick={feed}
-                disabled={isSleeping || !canFeed.ok}
-                title={feedTitle}
-                aria-disabled={isSleeping || !canFeed.ok}
+              onClick={feed}
+              disabled={isSleeping || !canFeed.ok}
+              title={feedTitle}
+              aria-disabled={isSleeping || !canFeed.ok}
             >
               Alimentar
             </button>
             <button
-                className="cursor-pointer rounded-[10px] border border-(--accent-border) bg-(--accent-bg) px-3 py-2 font-(--mono) text-[14px] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="cursor-pointer rounded-[10px] border border-(--accent-border) bg-(--accent-bg) px-3 py-2 font-(--mono) text-[14px] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               type="button"
-                onClick={play}
-                disabled={isSleeping || !canPlay.ok}
-                title={playTitle}
-                aria-disabled={isSleeping || !canPlay.ok}
+              onClick={play}
+              disabled={isSleeping || !canPlay.ok}
+              title={playTitle}
+              aria-disabled={isSleeping || !canPlay.ok}
             >
               Brincar
             </button>
@@ -186,7 +209,10 @@ function App() {
 
             <div className="mt-4 grid gap-3">
               <div className="grid gap-1 text-left">
-                <label className="font-(--mono) text-[13px] opacity-85" htmlFor="pet-name">
+                <label
+                  className="font-(--mono) text-[13px] opacity-85"
+                  htmlFor="pet-name"
+                >
                   Nome
                 </label>
                 <input
@@ -200,7 +226,10 @@ function App() {
               </div>
 
               <div className="grid gap-1 text-left">
-                <label className="font-(--mono) text-[13px] opacity-85" htmlFor="model">
+                <label
+                  className="font-(--mono) text-[13px] opacity-85"
+                  htmlFor="model"
+                >
                   Modelo
                 </label>
                 <select
@@ -231,19 +260,6 @@ function App() {
         </div>
       ) : null}
     </main>
-  );
-}
-
-function IconBolt() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 
