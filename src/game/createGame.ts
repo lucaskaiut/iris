@@ -7,6 +7,11 @@ export type GameMountConfig = {
 }
 
 export function createGame({ parent, scene }: GameMountConfig) {
+  const readParentSize = () => ({
+    w: Math.max(1, parent.clientWidth),
+    h: Math.max(1, parent.clientHeight || scene.heightPx),
+  })
+  const initial = readParentSize()
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.CANVAS,
     parent,
@@ -14,8 +19,8 @@ export function createGame({ parent, scene }: GameMountConfig) {
     render: { pixelArt: true, antialias: false, roundPixels: true },
     scale: {
       mode: Phaser.Scale.NONE,
-      width: parent.clientWidth,
-      height: scene.heightPx,
+      width: initial.w,
+      height: initial.h,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
     scene: [new PatrolScene(scene)],
@@ -24,8 +29,8 @@ export function createGame({ parent, scene }: GameMountConfig) {
   const game = new Phaser.Game(config)
 
   const ro = new ResizeObserver(() => {
-    const w = parent.clientWidth
-    game.scale.resize(w, scene.heightPx)
+    const { w, h } = readParentSize()
+    game.scale.resize(w, h)
   })
   ro.observe(parent)
 

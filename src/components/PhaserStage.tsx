@@ -1,60 +1,52 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { createGame } from '../game/createGame'
-import { getSpriteSheetSpec, type AnimationId, type DirectionId, type ModelId } from '../game/models'
+import { getModel, type DirectionId, type ModelId } from '../game/models'
 
 export type PhaserStageProps = {
-  model?: ModelId
-  animation?: AnimationId
+  model: ModelId
   direction?: DirectionId
-  moveDir?: -1 | 0 | 1
-  patrolWidthRatio?: number
   heightPx?: number
 }
 
 export default function PhaserStage({
-  model = 'fox',
-  animation = 'walk',
+  model,
   direction,
-  moveDir = 0,
-  patrolWidthRatio = 0.6,
-  heightPx = 240,
+  heightPx,
 }: PhaserStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const gameRef = useRef<ReturnType<typeof createGame> | null>(null)
 
-  const sheet = useMemo(() => getSpriteSheetSpec(model, animation), [model, animation])
+  const spriteModel = useMemo(() => getModel(model), [model])
 
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
 
-    host.style.height = `${heightPx}px`
+    if (typeof heightPx === 'number') host.style.height = `${heightPx}px`
+    else host.style.height = '100%'
 
     const instance = createGame({
       parent: host,
       scene: {
-        sheet,
+        model: spriteModel,
         direction,
-        patrolWidthRatio,
-        heightPx,
+        heightPx: typeof heightPx === 'number' ? heightPx : 240,
         background: 0x16171d,
       },
     })
 
     gameRef.current = instance
     return () => instance.destroy()
-  }, [sheet, direction, patrolWidthRatio, heightPx])
-
-  useEffect(() => {
-    const instance = gameRef.current
-    if (!instance) return
-    instance.game.events.emit('move', moveDir)
-  }, [moveDir])
+  }, [spriteModel, direction, heightPx])
 
   return (
     <div
       ref={hostRef}
-      style={{ width: '60vw', maxWidth: 900, minWidth: 320, height: heightPx }}
+      style={{
+        width: '100%',
+        height: typeof heightPx === 'number' ? heightPx : '100%',
+        minWidth: 320,
+      }}
     />
   )
 }

@@ -6,6 +6,13 @@ export type AnimationId = string
 
 export type DirectionId = 'down' | 'left' | 'right' | 'up'
 
+export type SpriteModel = {
+  id: ModelId
+  hasAnimation(animation: AnimationId): boolean
+  getDefaultAnimation(): AnimationId
+  getSheet(animation?: AnimationId): SpriteSheetSpec
+}
+
 export type SpriteSheetSpec = {
   model: ModelId
   animation: AnimationId
@@ -37,100 +44,119 @@ export function resolveSheetDirection(
   return { ...sheet, direction, startFrame, endFrame }
 }
 
-const FOX_BASE = {
-  frameWidth: 32,
-  frameHeight: 32,
-  directionRows: {
-    down: 0,
-    up: 1,
-    right: 3,
-    left: 2,
-  } satisfies Record<DirectionId, number>,
-  frameRate: 12,
-  repeat: -1,
-  scale: 3,
-  speedPxPerSec: 90,
-  paddingPx: 16,
-}
+type SpriteModelBaseSpec = Omit<SpriteSheetSpec, 'model' | 'animation' | 'src' | 'columns'>
 
-const FOX_COLUMNS_BY_ANIMATION: Record<string, number> = {
-  idle: 4,
-  hurt: 4,
-  run: 6,
-  walk: 6,
-}
+class AssetBackedSpriteModel implements SpriteModel {
+  public readonly id: ModelId
+  private readonly base: SpriteModelBaseSpec
+  private readonly columnsByAnimation: Record<string, number>
+  private readonly defaultColumns: number
+  private readonly defaultAnimation: AnimationId
 
-const GREAT_DANE_BASE = {
-  frameWidth: 100,
-  frameHeight: 100,
-  directionRows: {
-    down: 0,
-    up: 0,
-    right: 0,
-    left: 0,
-  } satisfies Record<DirectionId, number>,
-  frameRate: 10,
-  repeat: -1,
-  scale: 2,
-  speedPxPerSec: 140,
-  paddingPx: 16,
-}
-
-const GREAT_DANE_COLUMNS_BY_ANIMATION: Record<string, number> = {
-  bark: 3,
-  idle: 10,
-  itching: 2,
-  licking1: 4,
-  licking2: 4,
-  'lying-down': 7,
-  run: 8,
-  sitting: 1,
-  spleeping: 1,
-  stretching: 10,
-  walk: 8,
-}
-
-export function getSpriteSheetSpec(model: ModelId, animation: AnimationId): SpriteSheetSpec {
-  const src = getAnimationUrl(model, animation)
-  if (!src) {
-    throw new Error(`Spritesheet não encontrado: ${model}/${animation}.png`)
+  constructor(opts: {
+    id: ModelId
+    base: SpriteModelBaseSpec
+    columnsByAnimation: Record<string, number>
+    defaultColumns: number
+    defaultAnimation: AnimationId
+  }) {
+    this.id = opts.id
+    this.base = opts.base
+    this.columnsByAnimation = opts.columnsByAnimation
+    this.defaultColumns = opts.defaultColumns
+    this.defaultAnimation = opts.defaultAnimation
   }
 
-  if (model === 'fox') {
-    const columns = FOX_COLUMNS_BY_ANIMATION[animation] ?? 6
+  hasAnimation(animation: AnimationId) {
+    return Boolean(getAnimationUrl(this.id, animation))
+  }
+
+  getDefaultAnimation() {
+    if (this.hasAnimation(this.defaultAnimation)) return this.defaultAnimation
+    if (this.hasAnimation('idle')) return 'idle'
+    return this.defaultAnimation
+  }
+
+  getSheet(animation?: AnimationId): SpriteSheetSpec {
+    const resolvedAnimation = animation ?? this.getDefaultAnimation()
+    const src = getAnimationUrl(this.id, resolvedAnimation)
+    if (!src) {
+      throw new Error(`Spritesheet não encontrado: ${this.id}/${resolvedAnimation}.png`)
+    }
+    const columns = this.columnsByAnimation[resolvedAnimation] ?? this.defaultColumns
     return {
-      model,
-      animation,
+      model: this.id,
+      animation: resolvedAnimation,
       src,
-      frameWidth: FOX_BASE.frameWidth,
-      frameHeight: FOX_BASE.frameHeight,
       columns,
-      directionRows: FOX_BASE.directionRows,
-      frameRate: FOX_BASE.frameRate,
-      repeat: FOX_BASE.repeat,
-      scale: FOX_BASE.scale,
-      speedPxPerSec: FOX_BASE.speedPxPerSec,
-      paddingPx: FOX_BASE.paddingPx,
+      ...this.base,
     }
   }
+}
 
-  if (model === 'great_dane') {
-    const columns = GREAT_DANE_COLUMNS_BY_ANIMATION[animation] ?? 1
-    return {
-      model,
-      animation,
-      src,
-      frameWidth: GREAT_DANE_BASE.frameWidth,
-      frameHeight: GREAT_DANE_BASE.frameHeight,
-      columns,
-      directionRows: GREAT_DANE_BASE.directionRows,
-      frameRate: GREAT_DANE_BASE.frameRate,
-      repeat: GREAT_DANE_BASE.repeat,
-      scale: GREAT_DANE_BASE.scale,
-      speedPxPerSec: GREAT_DANE_BASE.speedPxPerSec,
-      paddingPx: GREAT_DANE_BASE.paddingPx,
-    }
-  }
+const FOX_MODEL: SpriteModel = new AssetBackedSpriteModel({
+  id: 'fox',
+  base: {
+    frameWidth: 32,
+    frameHeight: 32,
+    directionRows: {
+      down: 0,
+      up: 1,
+      right: 3,
+      left: 2,
+    } satisfies Record<DirectionId, number>,
+    frameRate: 12,
+    repeat: -1,
+    scale: 3,
+    speedPxPerSec: 90,
+    paddingPx: 16,
+  },
+  columnsByAnimation: { idle: 4, hurt: 4, run: 6, walk: 6 },
+  defaultColumns: 6,
+  defaultAnimation: 'idle',
+})
 
-  throw new Error(`Modelo não suportado: ${model}`)
+const GREAT_DANE_MODEL: SpriteModel = new AssetBackedSpriteModel({
+  id: 'great_dane',
+  base: {
+    frameWidth: 100,
+    frameHeight: 100,
+    directionRows: {
+      down: 0,
+      up: 0,
+      right: 0,
+      left: 0,
+    } satisfies Record<DirectionId, number>,
+    frameRate: 10,
+    repeat: -1,
+    scale: 2,
+    speedPxPerSec: 140,
+    paddingPx: 16,
+  },
+  columnsByAnimation: {
+    bark: 3,
+    idle: 10,
+    itching: 2,
+    licking1: 4,
+    licking2: 4,
+    'lying-down': 7,
+    run: 8,
+    sitting: 1,
+    spleeping: 1,
+    stretching: 10,
+    walk: 8,
+  },
+  defaultColumns: 1,
+  defaultAnimation: 'idle',
+})
+
+const MODEL_REGISTRY: Record<string, SpriteModel> = {
+  [FOX_MODEL.id]: FOX_MODEL,
+  [GREAT_DANE_MODEL.id]: GREAT_DANE_MODEL,
+}
+
+export function getModel(modelId: ModelId): SpriteModel {
+  const model = MODEL_REGISTRY[modelId]
+  if (!model) throw new Error(`Modelo não registrado: ${modelId}`)
+  return model
 }
