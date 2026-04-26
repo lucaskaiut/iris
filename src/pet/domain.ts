@@ -5,6 +5,9 @@ export type Pet = {
   health: number
   energy: number
   isSleeping: boolean
+  hungerAccMs: number
+  energyAccMs: number
+  healthAccMs: number
   createdAt: number
   updatedAt: number
   lastInteractionAt: number
@@ -97,6 +100,9 @@ export function createPet(opts: {
     health,
     energy,
     isSleeping: false,
+    hungerAccMs: 0,
+    energyAccMs: 0,
+    healthAccMs: 0,
     createdAt: opts.nowMs,
     updatedAt: opts.nowMs,
     lastInteractionAt: opts.nowMs,
@@ -116,36 +122,43 @@ export function derivePetState(pet: Pet): PetDerivedState {
 export function applyTimeProgress(pet: Pet, nowMs: number): Pet {
   if (nowMs <= pet.updatedAt) return pet
 
+  const deltaMs = nowMs - pet.updatedAt
+
   let hunger = pet.hunger
   let energy = pet.energy
   let health = pet.health
 
-  let nextEnergyAt = pet.updatedAt + (pet.isSleeping ? PET_SLEEP_REGEN_INTERVAL_MS : PET_ENERGY_AWAKE_INTERVAL_MS)
-  let nextHungerAt = pet.updatedAt + PET_HUNGER_INTERVAL_MS
-  let nextHealthAt = pet.updatedAt + PET_HEALTH_INTERVAL_MS
+  let hungerAccMs = pet.hungerAccMs + deltaMs
+  let energyAccMs = pet.energyAccMs + deltaMs
+  let healthAccMs = pet.healthAccMs + deltaMs
 
-  while (true) {
-    const nextAt = Math.min(nextEnergyAt, nextHungerAt, nextHealthAt)
-    if (nextAt > nowMs) break
-
-    if (nextAt === nextEnergyAt) {
-      energy = clampStat(energy + (pet.isSleeping ? PET_DECAY.sleepEnergy : PET_DECAY.energyAwake))
-      nextEnergyAt += pet.isSleeping ? PET_SLEEP_REGEN_INTERVAL_MS : PET_ENERGY_AWAKE_INTERVAL_MS
-    }
-
-    if (nextAt === nextHungerAt) {
-      hunger = clampStat(hunger + PET_DECAY.hunger)
-      nextHungerAt += PET_HUNGER_INTERVAL_MS
-    }
-
-    if (nextAt === nextHealthAt) {
-      if (hunger < 20) health = clampStat(health + PET_HEALTH.lowHunger)
-      if (energy < 20) health = clampStat(health + PET_HEALTH.lowEnergy)
-      nextHealthAt += PET_HEALTH_INTERVAL_MS
-    }
+  while (hungerAccMs >= PET_HUNGER_INTERVAL_MS) {
+    hungerAccMs -= PET_HUNGER_INTERVAL_MS
+    hunger = clampStat(hunger + PET_DECAY.hunger)
   }
 
-  return { ...pet, hunger, energy, health, updatedAt: nowMs }
+  const energyInterval = pet.isSleeping ? PET_SLEEP_REGEN_INTERVAL_MS : PET_ENERGY_AWAKE_INTERVAL_MS
+  while (energyAccMs >= energyInterval) {
+    energyAccMs -= energyInterval
+    energy = clampStat(energy + (pet.isSleeping ? PET_DECAY.sleepEnergy : PET_DECAY.energyAwake))
+  }
+
+  while (healthAccMs >= PET_HEALTH_INTERVAL_MS) {
+    healthAccMs -= PET_HEALTH_INTERVAL_MS
+    if (hunger < 20) health = clampStat(health + PET_HEALTH.lowHunger)
+    if (energy < 20) health = clampStat(health + PET_HEALTH.lowEnergy)
+  }
+
+  return {
+    ...pet,
+    hunger,
+    energy,
+    health,
+    hungerAccMs,
+    energyAccMs,
+    healthAccMs,
+    updatedAt: nowMs,
+  }
 }
 
 export function applySleep(pet: Pet, nowMs: number): Pet {
