@@ -4,6 +4,7 @@ export type Pet = {
   hunger: number
   health: number
   energy: number
+  coins: number
   isSleeping: boolean
   hungerAccMs: number
   energyAccMs: number
@@ -73,6 +74,17 @@ export const PLAY_MINIGAME_EFFECTS: Record<
   excellent: { energyDelta: -25, hungerDelta: -18, healthDelta: +15 },
 } as const
 
+export function getPlayCoinReward(result: PlayMiniGameResult) {
+  return (
+    {
+      poor: 2,
+      normal: 5,
+      good: 10,
+      excellent: 18,
+    } satisfies Record<PlayMiniGameResult, number>
+  )[result]
+}
+
 function clamp01(v: number) {
   return Math.max(0, Math.min(1, v))
 }
@@ -109,7 +121,10 @@ export function classifyPlayScore(score: number): PlayMiniGameResult {
 export type ApplyPlayResultOk = {
   ok: true
   pet: Pet
-  applied: { result: PlayMiniGameResult } & (typeof PLAY_MINIGAME_EFFECTS)[PlayMiniGameResult]
+  applied: {
+    result: PlayMiniGameResult
+    coinsDelta: number
+  } & (typeof PLAY_MINIGAME_EFFECTS)[PlayMiniGameResult]
 }
 
 export type ApplyPlayResultErr = { ok: false; reason: string }
@@ -124,16 +139,18 @@ export function applyPlayResult(
   if (!block.ok) return block
 
   const fx = PLAY_MINIGAME_EFFECTS[result]
+  const coinsDelta = getPlayCoinReward(result)
   const next = clampPet({
     ...decayed,
     energy: decayed.energy + fx.energyDelta,
     hunger: decayed.hunger + fx.hungerDelta,
     health: decayed.health + fx.healthDelta,
+    coins: decayed.coins + coinsDelta,
     updatedAt: nowMs,
     lastInteractionAt: nowMs,
   })
 
-  return { ok: true, pet: next, applied: { result, ...fx } }
+  return { ok: true, pet: next, applied: { result, coinsDelta, ...fx } }
 }
 
 export function canFeed(pet: Pet): ActionBlock {
@@ -148,12 +165,18 @@ export function clampStat(v: number) {
   return Math.min(PET_LIMITS.max, Math.max(PET_LIMITS.min, v))
 }
 
+export function clampCoins(v: number) {
+  if (!Number.isFinite(v)) return 0
+  return Math.max(0, Math.floor(v))
+}
+
 export function clampPet(pet: Pet): Pet {
   return {
     ...pet,
     hunger: clampStat(pet.hunger),
     health: clampStat(pet.health),
     energy: clampStat(pet.energy),
+    coins: clampCoins(pet.coins),
   }
 }
 
@@ -172,6 +195,7 @@ export function createPet(opts: {
     hunger,
     health,
     energy,
+    coins: 0,
     isSleeping: false,
     hungerAccMs: 0,
     energyAccMs: 0,

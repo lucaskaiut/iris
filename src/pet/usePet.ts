@@ -37,11 +37,15 @@ export type UsePetResult = {
   setModelId(modelId: string): void
   feed(): void
   play(): void
-  applyPlayMiniGameResult(result: PlayMiniGameResult): { ok: true } | { ok: false; reason: string }
+  applyPlayMiniGameResult(
+    result: PlayMiniGameResult,
+  ):
+    | { ok: true; applied: ReturnType<typeof applyPlayResult> extends { ok: true; applied: infer A } ? A : never }
+    | { ok: false; reason: string }
   sleep(): void
   wake(): void
   reset(): void
-  debugSet?(patch: Partial<Pick<Pet, 'hunger' | 'health' | 'energy' | 'isSleeping'>>): void
+  debugSet?(patch: Partial<Pick<Pet, 'hunger' | 'health' | 'energy' | 'coins' | 'isSleeping'>>): void
 }
 
 export function usePet(opts: UsePetOptions): UsePetResult {
@@ -133,7 +137,7 @@ export function usePet(opts: UsePetOptions): UsePetResult {
       const applied = applyPlayResult(pet, result, now)
       if (!applied.ok) return applied
       persistAndSet(applied.pet)
-      return { ok: true } as const
+      return { ok: true, applied: applied.applied } as const
     },
     [persistAndSet, pet],
   )

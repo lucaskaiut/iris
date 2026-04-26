@@ -12,9 +12,17 @@ import {
   classifyPlayScore,
   createPet,
   derivePetState,
+  getPlayCoinReward,
 } from './domain'
+import { normalizePet } from './stores/localStoragePetStore'
 
 describe('pet domain', () => {
+  it('starts with 0 coins', () => {
+    const now = 1_000_000
+    const pet = createPet({ name: 'X', modelId: 'fox', nowMs: now })
+    expect(pet.coins).toBe(0)
+  })
+
   it('classifies play minigame score into result buckets', () => {
     expect(classifyPlayScore(0)).toBe('poor')
     expect(classifyPlayScore(2)).toBe('poor')
@@ -61,6 +69,8 @@ describe('pet domain', () => {
     expect(applied.pet.energy).toBe(45)
     expect(applied.pet.hunger).toBe(50)
     expect(applied.pet.health).toBe(50)
+    expect(applied.pet.coins).toBe(2)
+    expect(applied.applied.coinsDelta).toBe(2)
     expect(applied.pet.updatedAt).toBe(now + 1)
     expect(applied.pet.lastInteractionAt).toBe(now + 1)
   })
@@ -79,6 +89,7 @@ describe('pet domain', () => {
     expect(applied.pet.energy).toBe(40)
     expect(applied.pet.hunger).toBe(45)
     expect(applied.pet.health).toBe(55)
+    expect(applied.pet.coins).toBe(5)
   })
 
   it('applies play minigame result: good', () => {
@@ -95,6 +106,7 @@ describe('pet domain', () => {
     expect(applied.pet.energy).toBe(40)
     expect(applied.pet.hunger).toBe(45)
     expect(applied.pet.health).toBe(60)
+    expect(applied.pet.coins).toBe(10)
   })
 
   it('applies play minigame result: excellent', () => {
@@ -111,6 +123,67 @@ describe('pet domain', () => {
     expect(applied.pet.energy).toBe(35)
     expect(applied.pet.hunger).toBe(42)
     expect(applied.pet.health).toBe(65)
+    expect(applied.pet.coins).toBe(18)
+  })
+
+  it('computes play coin rewards without UI/Phaser', () => {
+    expect(getPlayCoinReward('poor')).toBe(2)
+    expect(getPlayCoinReward('normal')).toBe(5)
+    expect(getPlayCoinReward('good')).toBe(10)
+    expect(getPlayCoinReward('excellent')).toBe(18)
+  })
+
+  it('accumulates coins after multiple minigames', () => {
+    const now = 1_000_000
+    const pet = createPet({
+      name: 'X',
+      modelId: 'fox',
+      nowMs: now,
+      initial: { hunger: 80, health: 80, energy: 80 },
+    })
+    const a1 = applyPlayResult(pet, 'good', now + 1)
+    expect(a1.ok).toBe(true)
+    if (!a1.ok) throw new Error('expected ok')
+    expect(a1.pet.coins).toBe(10)
+
+    const a2 = applyPlayResult(a1.pet, 'poor', now + 2)
+    expect(a2.ok).toBe(true)
+    if (!a2.ok) throw new Error('expected ok')
+    expect(a2.pet.coins).toBe(12)
+
+    const a3 = applyPlayResult(a2.pet, 'excellent', now + 3)
+    expect(a3.ok).toBe(true)
+    if (!a3.ok) throw new Error('expected ok')
+    expect(a3.pet.coins).toBe(30)
+  })
+
+  it('never allows coins to be negative (clamp/migration)', () => {
+    const now = 1_000_000
+    const pet = createPet({ name: 'X', modelId: 'fox', nowMs: now })
+    const normalized = normalizePet({
+      ...pet,
+      // simula estado legado/bugado
+      coins: -123,
+    })
+    expect(normalized.coins).toBe(0)
+  })
+
+  it('migrates old pets without coins to coins: 0', () => {
+    const now = 1_000_000
+    const legacyLike: any = {
+      name: 'X',
+      modelId: 'fox',
+      hunger: 80,
+      energy: 80,
+      // health pode existir (ou happiness em versões antigas)
+      health: 80,
+      createdAt: now,
+      updatedAt: now,
+      lastInteractionAt: now,
+      // sem coins
+    }
+    const normalized = normalizePet(legacyLike)
+    expect(normalized.coins).toBe(0)
   })
 
   it('blocks play minigame result application according to canPlay', () => {

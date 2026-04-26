@@ -3,11 +3,12 @@ import PhaserStage from './components/PhaserStage';
 import StatusRing from './components/StatusRing';
 import { getAvailableModels } from './game/assets';
 import { usePet } from './pet/usePet';
-import { classifyPlayScore, PLAY_MINIGAME_EFFECTS, type PlayMiniGameResult } from './pet/domain';
+import { classifyPlayScore } from './pet/domain';
 import CogIcon from './assets/icons/hud/cog.png';
 import HamburgerIcon from './assets/icons/hud/hamburger.png';
 import HeartIcon from './assets/icons/hud/heart.png';
 import LightningIcon from './assets/icons/hud/lightning.png';
+import CoinIcon from './assets/icons/coin.png';
 
 function App() {
   const models = useMemo(() => getAvailableModels(), []);
@@ -36,6 +37,7 @@ function App() {
   const [dbgHunger, setDbgHunger] = useState(pet.hunger);
   const [dbgHealth, setDbgHealth] = useState(pet.health);
   const [dbgEnergy, setDbgEnergy] = useState(pet.energy);
+  const [dbgCoins, setDbgCoins] = useState(pet.coins);
   const [dbgSleeping, setDbgSleeping] = useState(pet.isSleeping);
 
   const feedTitle = isSleeping
@@ -70,7 +72,7 @@ function App() {
   const [playUiMessage, setPlayUiMessage] = useState<string>('');
   const [miniGameSummary, setMiniGameSummary] = useState<{
     score: number;
-    applied: (typeof PLAY_MINIGAME_EFFECTS)[PlayMiniGameResult];
+    applied: { healthDelta: number; energyDelta: number; hungerDelta: number; coinsDelta: number };
   } | null>(null);
 
   const actionsLocked = miniGameState === 'playing';
@@ -118,7 +120,7 @@ function App() {
     <main className="h-full w-full grid grid-rows-[auto,1fr,auto] box-border overflow-hidden">
       <header className="shrink-0">
         <section className="flex w-full flex-col gap-2.5 rounded-xl p-3 shrink-0">
-          <div className="w-full gap-2 flex justify-center">
+          <div className="w-full gap-2 flex items-center justify-center">
             <StatusRing
               label="Fome"
               value={pet.hunger}
@@ -162,13 +164,12 @@ function App() {
               setMiniGameState('idle');
               if (payload.aborted) return;
               const result = classifyPlayScore(payload.score);
-              const applied = PLAY_MINIGAME_EFFECTS[result];
               const res = applyPlayMiniGameResult(result);
               if (!res.ok) {
                 setPlayUiMessage('reason' in res ? res.reason : 'Não foi possível aplicar o resultado.');
                 return;
               }
-              setMiniGameSummary({ score: payload.score, applied });
+              setMiniGameSummary({ score: payload.score, applied: res.applied });
               setMiniGameState('finished');
             }}
           />
@@ -249,7 +250,17 @@ function App() {
         <div className="flex flex-col gap-2 rounded-2xl border border-(--border) bg-[color-mix(in_oklab,var(--code-bg)_70%,transparent)] p-2 shadow-(--shadow)">
           <button
             type="button"
-            className="grid h-10 w-10 place-items-center rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] px-2 text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
+            aria-label={`Moedas: ${pet.coins}. Em breve: abrir mercado.`}
+            title={`Moedas: ${pet.coins} (em breve: mercado)`}
+            onClick={() => {}}
+          >
+            <img src={CoinIcon} alt="" className="h-5 w-5 opacity-90" />
+            <span className="font-(--mono) text-[14px] tabular-nums">{pet.coins}</span>
+          </button>
+          <button
+            type="button"
+            className="grid h-10 w-full place-items-center rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
             onClick={() => setSettingsOpen(true)}
             aria-label="Configurações"
             title="Configurações"
@@ -260,7 +271,7 @@ function App() {
           {isDev ? (
             <button
               type="button"
-              className="grid h-10 w-10 place-items-center rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
+              className="grid h-10 w-full place-items-center rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
               onClick={() => {
                 setDebugOpen((v) => {
                   const next = !v;
@@ -268,6 +279,7 @@ function App() {
                     setDbgHunger(pet.hunger);
                     setDbgHealth(pet.health);
                     setDbgEnergy(pet.energy);
+                    setDbgCoins(pet.coins);
                     setDbgSleeping(pet.isSleeping);
                   }
                   return next;
@@ -296,9 +308,15 @@ function App() {
               </div>
 
               <div className="mt-3 grid gap-3">
-                <DebugRow label="Fome" value={dbgHunger} onChange={setDbgHunger} />
-                <DebugRow label="Saúde" value={dbgHealth} onChange={setDbgHealth} />
-                <DebugRow label="Energia" value={dbgEnergy} onChange={setDbgEnergy} />
+                <DebugRow label="Fome" value={dbgHunger} onChange={setDbgHunger} max={100} />
+                <DebugRow label="Saúde" value={dbgHealth} onChange={setDbgHealth} max={100} />
+                <DebugRow label="Energia" value={dbgEnergy} onChange={setDbgEnergy} max={100} />
+                <DebugRow
+                  label="Moedas"
+                  value={dbgCoins}
+                  onChange={setDbgCoins}
+                  showRange={false}
+                />
 
                 <label className="flex items-center gap-2 font-(--mono) text-[13px] opacity-90">
                   <input
@@ -317,6 +335,7 @@ function App() {
                       hunger: dbgHunger,
                       health: dbgHealth,
                       energy: dbgEnergy,
+                      coins: dbgCoins,
                       isSleeping: dbgSleeping,
                     });
                   }}
@@ -458,6 +477,7 @@ function App() {
                 <div>Saúde {miniGameSummary.applied.healthDelta >= 0 ? '+' : ''}{miniGameSummary.applied.healthDelta}</div>
                 <div>Energia {miniGameSummary.applied.energyDelta >= 0 ? '+' : ''}{miniGameSummary.applied.energyDelta}</div>
                 <div>Fome {miniGameSummary.applied.hungerDelta >= 0 ? '+' : ''}{miniGameSummary.applied.hungerDelta}</div>
+                <div>Moedas +{miniGameSummary.applied.coinsDelta}</div>
               </div>
             </div>
 
@@ -497,11 +517,16 @@ function DebugRow({
   label,
   value,
   onChange,
+  max,
+  showRange = true,
 }: {
   label: string;
   value: number;
   onChange(v: number): void;
+  max?: number;
+  showRange?: boolean;
 }) {
+  const maxAttr = typeof max === 'number' ? max : undefined
   return (
     <div className="grid gap-1 text-left">
       <div className="flex items-center justify-between gap-2">
@@ -510,18 +535,20 @@ function DebugRow({
           className="w-[72px] rounded-[10px] border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] px-2 py-1 font-(--mono) text-[13px] text-(--text-h)"
           type="number"
           min={0}
-          max={100}
+          max={maxAttr}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
         />
       </div>
-      <input
-        type="range"
-        min={0}
-        max={100}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
+      {showRange ? (
+        <input
+          type="range"
+          min={0}
+          max={maxAttr ?? 100}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+        />
+      ) : null}
     </div>
   );
 }

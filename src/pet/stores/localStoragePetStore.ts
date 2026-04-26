@@ -3,7 +3,11 @@ import type { PetStore } from '../store'
 
 const STORAGE_KEY = 'iris.pet.v1'
 
-type LegacyPetV1 = Omit<Pet, 'health'> & { happiness?: number; health?: number }
+type LegacyPetV1 = Omit<Pet, 'health' | 'coins'> & {
+  happiness?: number
+  health?: number
+  coins?: number
+}
 type LegacyPetV2 = LegacyPetV1 & {
   isSleeping?: boolean
   hungerAccMs?: number
@@ -25,18 +29,19 @@ function isLegacyShape(v: unknown): v is LegacyPetV1 {
   )
 }
 
-function normalizePet(v: LegacyPetV2): Pet {
+export function normalizePet(v: LegacyPetV2): Pet {
   const health =
     typeof v.health === 'number'
       ? v.health
       : typeof v.happiness === 'number'
         ? v.happiness
         : 80
+  const coins = typeof v.coins === 'number' ? v.coins : 0
   const isSleeping = typeof v.isSleeping === 'boolean' ? v.isSleeping : false
   const hungerAccMs = typeof v.hungerAccMs === 'number' ? v.hungerAccMs : 0
   const energyAccMs = typeof v.energyAccMs === 'number' ? v.energyAccMs : 0
   const healthAccMs = typeof v.healthAccMs === 'number' ? v.healthAccMs : 0
-  return clampPet({ ...v, health, isSleeping, hungerAccMs, energyAccMs, healthAccMs } as Pet)
+  return clampPet({ ...v, health, coins, isSleeping, hungerAccMs, energyAccMs, healthAccMs } as Pet)
 }
 
 export function createLocalStoragePetStore(opts?: { key?: string }): PetStore {
