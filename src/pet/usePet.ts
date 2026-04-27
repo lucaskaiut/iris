@@ -13,6 +13,7 @@ import {
   createPet,
   derivePetState,
   type Pet,
+  type ApplyPlayResultOk,
   type PlayMiniGameResult,
 } from './domain'
 import { createLocalStoragePetStore } from './stores/localStoragePetStore'
@@ -40,7 +41,7 @@ export type UsePetResult = {
   applyPlayMiniGameResult(
     result: PlayMiniGameResult,
   ):
-    | { ok: true; applied: ReturnType<typeof applyPlayResult> extends { ok: true; applied: infer A } ? A : never }
+    | { ok: true; applied: ApplyPlayResultOk['applied'] }
     | { ok: false; reason: string }
   sleep(): void
   wake(): void

@@ -35,7 +35,9 @@ export const PET_THRESHOLDS = {
 
 export const PET_ENERGY_AWAKE_INTERVAL_MS = 30_000
 export const PET_HUNGER_INTERVAL_MS = 40_000
-export const PET_HEALTH_INTERVAL_MS = 40_000
+// Saúde deve cair bem mais devagar para evitar "morte rápida" por abandono.
+// Alvo: ~48h para chegar a 0 em condições ruins (fome/energia críticas).
+export const PET_HEALTH_INTERVAL_MS = 60 * 60 * 1000
 export const PET_SLEEP_REGEN_INTERVAL_MS = 8_000
 
 export const PET_DECAY = {
@@ -45,10 +47,10 @@ export const PET_DECAY = {
 } as const
 
 export const PET_HEALTH = {
-  lowHunger: -2,
-  lowEnergy: -2,
-  sleepHungryPenalty: -2,
-  sleepStarvingPenalty: -5,
+  lowHunger: -1,
+  lowEnergy: -1,
+  sleepHungryPenalty: -1,
+  sleepStarvingPenalty: -2,
 } as const
 
 export type ActionBlock = { ok: true } | { ok: false; reason: string }

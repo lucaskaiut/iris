@@ -13,6 +13,7 @@ import {
   createPet,
   derivePetState,
   getPlayCoinReward,
+  PET_HEALTH_INTERVAL_MS,
 } from './domain'
 import { normalizePet } from './stores/localStoragePetStore'
 
@@ -319,10 +320,12 @@ describe('pet domain', () => {
       nowMs: now,
       initial: { hunger: 10, health: 10, energy: 20 },
     })
-    const sleepingHungry = { ...hungry, isSleeping: true }
-    const after80sHungry = applyTimeProgress(sleepingHungry, now + 80_000)
-    expect(after80sHungry.energy).toBe(sleepingHungry.energy)
-    expect(after80sHungry.health).toBeLessThan(sleepingHungry.health)
+    // Para testar a penalidade de saúde sem virar "starving" rápido (fome cai 1/40s),
+    // atrasamos o acumulador de fome para manter hunger < 20 e > 0 durante 1h.
+    const sleepingHungry = { ...hungry, isSleeping: true, hungerAccMs: -10_000_000 }
+    const afterHungryTick = applyTimeProgress(sleepingHungry, now + PET_HEALTH_INTERVAL_MS + 1)
+    expect(afterHungryTick.energy).toBe(sleepingHungry.energy)
+    expect(afterHungryTick.health).toBeLessThan(sleepingHungry.health)
 
     const starving = createPet({
       name: 'X',
@@ -333,8 +336,8 @@ describe('pet domain', () => {
     const sleepingStarving = { ...starving, isSleeping: true }
     const after30sStarving = applyTimeProgress(sleepingStarving, now + 30_000 + 1)
     expect(after30sStarving.energy).toBeLessThan(sleepingStarving.energy)
-    const after40sStarving = applyTimeProgress(sleepingStarving, now + 40_000 + 1)
-    expect(after40sStarving.health).toBeLessThan(sleepingStarving.health)
+    const afterStarvingTick = applyTimeProgress(sleepingStarving, now + PET_HEALTH_INTERVAL_MS + 2)
+    expect(afterStarvingTick.health).toBeLessThan(sleepingStarving.health)
   })
 
   it('blocks actions according to rules', () => {
