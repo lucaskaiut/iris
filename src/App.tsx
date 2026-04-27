@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import PhaserStage from './components/PhaserStage';
 import StatusRing from './components/StatusRing';
+import ShopMenu from './components/ShopMenu';
 import { getAvailableModels } from './game/assets';
 import { usePet } from './pet/usePet';
 import { classifyPlayScore } from './pet/domain';
@@ -23,6 +24,7 @@ function App() {
     setModelId,
     feed,
     applyPlayMiniGameResult,
+    setPetState,
     sleep,
     wake,
     reset,
@@ -60,6 +62,7 @@ function App() {
       ? canSleep.reason
       : '';
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shopOpen, setShopOpen] = useState(false);
 
   const sleepInfo =
     isSleeping && pet.hunger <= 0
@@ -251,9 +254,9 @@ function App() {
           <button
             type="button"
             className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] px-2 text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
-            aria-label={`Moedas: ${pet.coins}. Em breve: abrir mercado.`}
-            title={`Moedas: ${pet.coins} (em breve: mercado)`}
-            onClick={() => {}}
+            aria-label={`Moedas: ${pet.coins}. Abrir mercado.`}
+            title={`Moedas: ${pet.coins}`}
+            onClick={() => setShopOpen(true)}
           >
             <img src={CoinIcon} alt="" className="h-5 w-5 opacity-90" />
             <span className="font-(--mono) text-[14px] tabular-nums">{pet.coins}</span>
@@ -347,6 +350,14 @@ function App() {
           ) : null}
         </div>
       </aside>
+
+      <ShopMenu
+        open={shopOpen}
+        pet={pet}
+        onClose={() => setShopOpen(false)}
+        onPetUpdated={setPetState}
+        onMessage={(msg) => setPlayUiMessage(msg)}
+      />
 
       {settingsOpen ? (
         <div

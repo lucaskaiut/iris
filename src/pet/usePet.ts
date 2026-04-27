@@ -43,6 +43,7 @@ export type UsePetResult = {
   ):
     | { ok: true; applied: ApplyPlayResultOk['applied'] }
     | { ok: false; reason: string }
+  setPetState(next: Pet): void
   sleep(): void
   wake(): void
   reset(): void
@@ -169,7 +170,7 @@ export function usePet(opts: UsePetOptions): UsePetResult {
   }, [persistAndSet, pet.modelId, pet.name])
 
   const debugSet = useCallback(
-    (patch: Partial<Pick<Pet, 'hunger' | 'health' | 'energy' | 'isSleeping'>>) => {
+    (patch: Partial<Pick<Pet, 'hunger' | 'health' | 'energy' | 'coins' | 'isSleeping'>>) => {
       const now = Date.now()
       persistAndSet(
         clampPet({
@@ -199,6 +200,7 @@ export function usePet(opts: UsePetOptions): UsePetResult {
     feed,
     play,
     applyPlayMiniGameResult: applyPlayMiniGameResultCb,
+    setPetState: persistAndSet,
     sleep,
     wake,
     reset,
