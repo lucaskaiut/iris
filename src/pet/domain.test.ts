@@ -13,6 +13,7 @@ import {
   createPet,
   derivePetState,
   getPlayCoinReward,
+  normalizeInventory,
   PET_HEALTH_INTERVAL_MS,
 } from './domain'
 import { normalizePet } from './stores/localStoragePetStore'
@@ -22,6 +23,21 @@ describe('pet domain', () => {
     const now = 1_000_000
     const pet = createPet({ name: 'X', modelId: 'fox', nowMs: now })
     expect(pet.coins).toBe(0)
+    expect(pet.inventory).toEqual({ bed_simple: 0, food_simple: 0, medicine_simple: 0 })
+  })
+
+  it('normalizeInventory aceita chaves legadas bed/food/medicine', () => {
+    expect(
+      normalizeInventory({
+        bed: 2,
+        food: 1,
+        medicine: 5,
+      } as Record<string, number>),
+    ).toEqual({
+      bed_simple: 2,
+      food_simple: 1,
+      medicine_simple: 5,
+    })
   })
 
   it('classifies play minigame score into result buckets', () => {
@@ -185,6 +201,7 @@ describe('pet domain', () => {
     }
     const normalized = normalizePet(legacyLike)
     expect(normalized.coins).toBe(0)
+    expect(normalized.inventory).toEqual({ bed_simple: 0, food_simple: 0, medicine_simple: 0 })
   })
 
   it('blocks play minigame result application according to canPlay', () => {

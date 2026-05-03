@@ -1,6 +1,6 @@
 import CoinIcon from '../assets/icons/coin.png'
 import type { Pet } from '../pet/domain'
-import { applyPurchaseItem, getShopItems, type ShopItemId } from '../shop/domain'
+import { applyPurchaseItem, canPurchaseItem, getShopItems, type ShopItemId } from '../shop/domain'
 
 export type ShopMenuProps = {
   open: boolean
@@ -64,7 +64,7 @@ export default function ShopMenu({ open, pet, onClose, onPetUpdated, onMessage }
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           {items.map((item) => {
-            const affordable = pet.coins >= item.priceCoins
+            const preview = canPurchaseItem(pet, item)
             return (
               <div
                 key={item.id}
@@ -91,9 +91,9 @@ export default function ShopMenu({ open, pet, onClose, onPetUpdated, onMessage }
                   type="button"
                   className="mt-3 w-full cursor-pointer rounded-[12px] border border-(--accent-border) bg-(--accent-bg) px-3 py-2 font-(--mono) text-[14px] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={() => onBuy(item.id)}
-                  disabled={!affordable}
-                  aria-disabled={!affordable}
-                  title={!affordable ? 'Moedas insuficientes' : 'Comprar'}
+                  disabled={!preview.ok}
+                  aria-disabled={!preview.ok}
+                  title={preview.ok ? 'Comprar' : preview.reason}
                 >
                   Comprar
                 </button>

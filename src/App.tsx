@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import PhaserStage from './components/PhaserStage';
 import StatusRing from './components/StatusRing';
 import ShopMenu from './components/ShopMenu';
+import InventoryModal from './components/InventoryModal';
 import { getAvailableModels } from './game/assets';
 import { usePet } from './pet/usePet';
 import { classifyPlayScore } from './pet/domain';
@@ -10,6 +11,7 @@ import HamburgerIcon from './assets/icons/hud/hamburger.png';
 import HeartIcon from './assets/icons/hud/heart.png';
 import LightningIcon from './assets/icons/hud/lightning.png';
 import CoinIcon from './assets/icons/coin.png';
+import BagIcon from './assets/icons/hud/bag.png';
 
 function App() {
   const models = useMemo(() => getAvailableModels(), []);
@@ -63,6 +65,7 @@ function App() {
       : '';
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
 
   const sleepInfo =
     isSleeping && pet.hunger <= 0
@@ -81,13 +84,16 @@ function App() {
   const actionsLocked = miniGameState === 'playing';
 
   useEffect(() => {
-    if (!settingsOpen) return;
+    if (!settingsOpen && !inventoryOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSettingsOpen(false);
+      if (e.key === 'Escape') {
+        setSettingsOpen(false);
+        setInventoryOpen(false);
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [settingsOpen]);
+  }, [settingsOpen, inventoryOpen]);
 
   useEffect(() => {
     if (!playUiMessage) return;
@@ -264,6 +270,15 @@ function App() {
           <button
             type="button"
             className="grid h-10 w-full place-items-center rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
+            aria-label="Abrir estoque"
+            title="Estoque"
+            onClick={() => setInventoryOpen(true)}
+          >
+            <img src={BagIcon} alt="" className="h-5 w-5 opacity-90" />
+          </button>
+          <button
+            type="button"
+            className="grid h-10 w-full place-items-center rounded-xl border border-(--border) bg-[color-mix(in_oklab,var(--bg)_85%,transparent)] text-(--text-h) hover:border-(--accent) focus-visible:outline-2 focus-visible:outline-(--accent) focus-visible:outline-offset-2"
             onClick={() => setSettingsOpen(true)}
             aria-label="Configurações"
             title="Configurações"
@@ -358,6 +373,8 @@ function App() {
         onPetUpdated={setPetState}
         onMessage={(msg) => setPlayUiMessage(msg)}
       />
+
+      <InventoryModal open={inventoryOpen} pet={pet} onClose={() => setInventoryOpen(false)} />
 
       {settingsOpen ? (
         <div

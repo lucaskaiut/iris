@@ -1,9 +1,9 @@
-import BedIcon from '../assets/icons/shop/bed.png'
-import FoodIcon from '../assets/icons/shop/food.png'
-import MedicineIcon from '../assets/icons/shop/medicine.png'
-import { clampPet, type Pet } from '../pet/domain'
+import SimpleBedIcon from '../assets/icons/items/simple_bed.png'
+import SimpleFoodIcon from '../assets/icons/items/simple_food.png'
+import SimpleMedicineIcon from '../assets/icons/items/simple_medicine.png'
+import { clampPet, normalizeInventory, type Pet } from '../pet/domain'
 
-export type ShopItemId = 'bed' | 'food' | 'medicine'
+export type ShopItemId = 'bed_simple' | 'food_simple' | 'medicine_simple'
 
 export type ShopItem = {
   id: ShopItemId
@@ -12,10 +12,39 @@ export type ShopItem = {
   iconSrc: string
 }
 
+export type ShopItemCatalogInfo = {
+  /** Uma frase curta, tomada de humor leve. */
+  description: string
+  /** Benefícios previstos ao usar o item (texto exibido ao jogador). */
+  offers: string[]
+}
+
+export const SHOP_ITEM_DETAILS: Record<ShopItemId, ShopItemCatalogInfo> = {
+  food_simple: {
+    description:
+      'Mistura que cheira a culpa boa: dá larica honesta e um empurrão pra aguentar o próximo passeio.',
+    offers: ['+30 fome', '+5 energia'],
+  },
+  medicine_simple: {
+    description:
+      'Vidrinho de “confia em mim” com rótulo genérico — no fundo, é carinho químico em dose de emergência.',
+    offers: ['+30 saúde'],
+  },
+  bed_simple: {
+    description:
+      'Tapete fofo com humildade de sofá: o suficiente pra roncar sem culpa e acordar menos derrotado.',
+    offers: ['Recuperação de energia no sono em ritmo dobrado'],
+  },
+}
+
+export function getShopItemDetails(id: ShopItemId): ShopItemCatalogInfo {
+  return SHOP_ITEM_DETAILS[id]
+}
+
 export const SHOP_ITEMS: readonly ShopItem[] = [
-  { id: 'bed', name: 'Cama', priceCoins: 35, iconSrc: BedIcon },
-  { id: 'food', name: 'Comida', priceCoins: 12, iconSrc: FoodIcon },
-  { id: 'medicine', name: 'Remédio', priceCoins: 28, iconSrc: MedicineIcon },
+  { id: 'bed_simple', name: 'Cama Simples', priceCoins: 60, iconSrc: SimpleBedIcon },
+  { id: 'food_simple', name: 'Ração Simples', priceCoins: 18, iconSrc: SimpleFoodIcon },
+  { id: 'medicine_simple', name: 'Remédio Simples', priceCoins: 45, iconSrc: SimpleMedicineIcon },
 ] as const
 
 export function getShopItems() {
@@ -44,13 +73,17 @@ export function applyPurchaseItem(
   const block = canPurchaseItem(pet, item)
   if (!block.ok) return block
 
+  const inv = normalizeInventory(pet.inventory)
   const next = clampPet({
     ...pet,
     coins: pet.coins - item.priceCoins,
+    inventory: {
+      ...inv,
+      [item.id]: inv[item.id] + 1,
+    },
     updatedAt: nowMs,
     lastInteractionAt: nowMs,
   })
 
   return { ok: true, pet: next, item }
 }
-

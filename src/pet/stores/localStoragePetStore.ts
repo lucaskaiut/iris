@@ -1,4 +1,4 @@
-import { clampPet, type Pet } from '../domain'
+import { clampPet, normalizeInventory, type Pet, type PetInventory } from '../domain'
 import type { PetStore } from '../store'
 
 const STORAGE_KEY = 'iris.pet.v1'
@@ -41,7 +41,27 @@ export function normalizePet(v: LegacyPetV2): Pet {
   const hungerAccMs = typeof v.hungerAccMs === 'number' ? v.hungerAccMs : 0
   const energyAccMs = typeof v.energyAccMs === 'number' ? v.energyAccMs : 0
   const healthAccMs = typeof v.healthAccMs === 'number' ? v.healthAccMs : 0
-  return clampPet({ ...v, health, coins, isSleeping, hungerAccMs, energyAccMs, healthAccMs } as Pet)
+  const rawInv = (v as { inventory?: unknown }).inventory
+  const inventory =
+    rawInv && typeof rawInv === 'object'
+      ? normalizeInventory(rawInv as Partial<PetInventory>)
+      : normalizeInventory(undefined)
+  return clampPet({
+    name: v.name,
+    modelId: v.modelId,
+    hunger: v.hunger,
+    health,
+    energy: v.energy,
+    coins,
+    isSleeping,
+    inventory,
+    hungerAccMs,
+    energyAccMs,
+    healthAccMs,
+    createdAt: v.createdAt,
+    updatedAt: v.updatedAt,
+    lastInteractionAt: v.lastInteractionAt,
+  })
 }
 
 export function createLocalStoragePetStore(opts?: { key?: string }): PetStore {

@@ -1,3 +1,33 @@
+/** Contagens agregadas por tipo de item da loja (mesmas chaves que `ShopItemId`). */
+export type PetInventory = {
+  bed_simple: number
+  food_simple: number
+  medicine_simple: number
+}
+
+export const EMPTY_INVENTORY: PetInventory = { bed_simple: 0, food_simple: 0, medicine_simple: 0 }
+
+type LegacyInventoryKeys = {
+  bed?: number
+  food?: number
+  medicine?: number
+}
+
+export function normalizeInventory(
+  inv: Partial<PetInventory> | LegacyInventoryKeys | undefined | null,
+): PetInventory {
+  const slot = (n: unknown) => {
+    if (typeof n !== 'number' || !Number.isFinite(n)) return 0
+    return Math.max(0, Math.floor(n))
+  }
+  const raw = (inv ?? {}) as Partial<PetInventory> & LegacyInventoryKeys
+  return {
+    bed_simple: slot(raw.bed_simple ?? raw.bed),
+    food_simple: slot(raw.food_simple ?? raw.food),
+    medicine_simple: slot(raw.medicine_simple ?? raw.medicine),
+  }
+}
+
 export type Pet = {
   name: string
   modelId: string
@@ -6,6 +36,7 @@ export type Pet = {
   energy: number
   coins: number
   isSleeping: boolean
+  inventory: PetInventory
   hungerAccMs: number
   energyAccMs: number
   healthAccMs: number
@@ -179,6 +210,7 @@ export function clampPet(pet: Pet): Pet {
     health: clampStat(pet.health),
     energy: clampStat(pet.energy),
     coins: clampCoins(pet.coins),
+    inventory: normalizeInventory(pet.inventory),
   }
 }
 
@@ -199,6 +231,7 @@ export function createPet(opts: {
     energy,
     coins: 0,
     isSleeping: false,
+    inventory: { ...EMPTY_INVENTORY },
     hungerAccMs: 0,
     energyAccMs: 0,
     healthAccMs: 0,
